@@ -193,7 +193,7 @@ body {
 
 .form-error {
   border: 1px solid transparent;
-  /*  @apply border-red !important; */
+  /*  git@apply border-red !important; */
 }
 
 .select-ghost:focus {
