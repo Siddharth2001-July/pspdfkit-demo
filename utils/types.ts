@@ -11,9 +11,6 @@ export interface User {
   name: string;
   email: string;
   color: Color;
+  role: string;
 }
 
-export interface UserField {
-  userID: number;
-  fieldID: number;
-}
