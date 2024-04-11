@@ -8,6 +8,7 @@ import iconDate from "@/public/icon-date.svg";
 import { twMerge } from "tailwind-merge";
 import ImageComponent from "next/image";
 import iconPlusGray from "@/public/icon-plus-gray.png";
+import { Select } from "@baseline-ui/core";
 
 /**
  * SignDemo component.
@@ -20,7 +21,6 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
   allUsers,
   user,
 }) => {
-  //export const SignDemo: any = ({ allUsers, user }: { allUsers: User[], user: User }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [instance, setInstance] = useState<Instance | null>(null);
 
@@ -49,6 +49,8 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
   const [onPageIndex, setOnPageIndex] = useState<number>(0);
   const onPageIndexRef = useRef(onPageIndex);
   onPageIndexRef.current = onPageIndex;
+
+  const [readyToSign, setReadyToSign] = useState<boolean>(true);
 
   function onDragStart(event: React.DragEvent<HTMLDivElement>, type: string) {
     const instantId = PSPDFKit.generateInstantId();
@@ -115,6 +117,7 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
       const formField = new PSPDFKit.FormFields.SignatureFormField({
         annotationIds: PSPDFKit.Immutable.List([widget.id]),
         name: instantId,
+        id: instantId,
         readOnly: signee.id != user.id,
       });
       await inst.create([widget, formField]);
@@ -157,6 +160,36 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
         };
       }
     });
+  };
+
+  const onChangeReadyToSign = async (value: boolean) => {
+    if (instance) {
+      if (currUser.role == "Editor") {
+        setReadyToSign(value);
+        if (value) {
+          instance.setViewState((viewState) =>
+            viewState.set(
+              "interactionMode",
+              PSPDFKit.InteractionMode.PAN
+            )
+          );
+        } else {
+          instance.setViewState((viewState) =>
+            viewState.set(
+              "interactionMode",
+              PSPDFKit.InteractionMode.FORM_CREATOR
+            )
+          );
+        }
+      } else {
+        instance.setViewState((viewState) =>
+          viewState.set(
+            "interactionMode",
+            PSPDFKit.InteractionMode.PAN
+          )
+        );
+      }
+    }
   };
 
   const addSignee = () => {
@@ -231,7 +264,7 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
       const userFieldIds = await signatureAnnotations();
       const readOnlyFormFields = signatureFormFields
         .map((it: any) => {
-          if (userFieldIds.includes(it.name)) {
+          if (userFieldIds.includes(it.id)) {
             return it.set("readOnly", false);
           } else {
             return it.set("readOnly", true);
@@ -245,11 +278,13 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
           viewState.set("showToolbar", true)
         );
         setIsVisible(true);
+        onChangeReadyToSign(false);
       } else {
         instance.setViewState((viewState) =>
           viewState.set("showToolbar", false)
         );
         setIsVisible(false);
+        onChangeReadyToSign(true);
       }
     }
   };
@@ -341,6 +376,18 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
               >
                 Add signee
               </button>
+              <div className="flex items-center mb-4">
+                <input
+                  id="default-checkbox"
+                  type="checkbox"
+                  checked={readyToSign}
+                  onChange={(e) => onChangeReadyToSign(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label className="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                  Ready to sign
+                </label>
+              </div>
               <h2 style={{ margin: "10px" }}>Select signee : </h2>
               <select
                 className="select bg-anti-flash-white select-ghost w-full !min-h-max !h-8"

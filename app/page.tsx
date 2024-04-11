@@ -3,7 +3,7 @@ import PSPDFKit from "pspdfkit";
 import { User } from "../utils/types";
 import { SignDemo } from "./signingDemo";
 import { useEffect, useState } from "react";
-
+import { I18nProvider, ThemeProvider } from "@baseline-ui/core";
 
 const App: React.FC = () => {
   const allUsers: User[] = [
@@ -17,7 +17,7 @@ const App: React.FC = () => {
     {
       id: 2,
       name: "Signer",
-      email: "master@email.com",
+      email: "signer@email.com",
       color: PSPDFKit.Color.YELLOW,
       role: "Signer",
     },
@@ -25,11 +25,17 @@ const App: React.FC = () => {
   const [currUser, setCurrUser] = useState(allUsers[0]);
   useEffect(() => {
     setTimeout(() => {
-      console.log("Setting current user to Signer");  
+      console.log("Setting current user to Signer");
       setCurrUser(allUsers[1]);
-    }, 5*1000);
-  }, []) // Add an empty dependency array to ensure the effect runs only once
+    }, 5 * 1000);
+  }, []); // Add an empty dependency array to ensure the effect runs only once
 
-  return <SignDemo allUsers={allUsers} user={currUser} />;
+  return (
+    <ThemeProvider theme={'system'}>
+      <I18nProvider locale="en-US">
+        <SignDemo allUsers={allUsers} user={currUser} />
+      </I18nProvider>
+    </ThemeProvider>
+  );
 };
 export default App;

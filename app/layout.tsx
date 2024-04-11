@@ -52,8 +52,6 @@ export const metadata = {
   },
 };
 
-
-
 const SFProText = localFont({
   src: [
     {
@@ -109,14 +107,22 @@ export default function RootLayout({
           SFProDisplay.variable
         )}
       >
-        <nav style={{ display: 'flex', alignItems: 'center', margin: '10px' }}>
-        <ImageComponent
-          src={logo}
-          width={50}
-          className="inline-block"
-          alt="plus icon"
-        />
-          <span style={{ fontSize: '30px', fontWeight: '500' , margin: '10px 10px'}}>PSPDFKit Sign App</span>
+        <nav style={{ display: "flex", alignItems: "center", margin: "10px" }}>
+          <ImageComponent
+            src={logo}
+            width={50}
+            className="inline-block"
+            alt="plus icon"
+          />
+          <span
+            style={{
+              fontSize: "30px",
+              fontWeight: "500",
+              margin: "10px 10px",
+            }}
+          >
+            PSPDFKit Sign App
+          </span>
         </nav>
         {children}
       </body>
