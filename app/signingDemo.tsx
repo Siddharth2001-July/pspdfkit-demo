@@ -10,6 +10,8 @@ import ImageComponent from "next/image";
 import iconPlusGray from "@/public/icon-plus-gray.png";
 import { Select } from "@baseline-ui/core";
 
+const renderConfigurations: any = {};
+
 /**
  * SignDemo component.
  *
@@ -52,6 +54,11 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
 
   const [readyToSign, setReadyToSign] = useState<boolean>(true);
 
+  const mySignatureIdsRef = useRef([]);
+  const [signatureAnnotationIds, setSignatureAnnotationIds] = useState<
+    string[]
+  >([]);
+
   function onDragStart(event: React.DragEvent<HTMLDivElement>, type: string) {
     const instantId = PSPDFKit.generateInstantId();
     let data =
@@ -91,14 +98,21 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
     const clientRect = new PSPDFKit.Geometry.Rect({
       left: e.clientX,
       top: e.clientY,
-      height: annotationType === AnnotationTypeEnum.SIGNATURE ? 60 : 40,
+      height:
+        annotationType === AnnotationTypeEnum.SIGNATURE ||
+        annotationType === AnnotationTypeEnum.INITIAL
+          ? 60
+          : 40,
       width: 200,
     });
     const pageRect = inst.transformContentClientToPageSpace(
       clientRect,
       pageIndex
     ) as Rect;
-    if (annotationType === AnnotationTypeEnum.SIGNATURE) {
+    if (
+      annotationType === AnnotationTypeEnum.SIGNATURE ||
+      annotationType === AnnotationTypeEnum.INITIAL
+    ) {
       const widget = new PSPDFKit.Annotations.WidgetAnnotation({
         boundingBox: pageRect,
         formFieldName: instantId,
@@ -111,6 +125,7 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
           signerEmail: email,
           type: annotationType,
           signerColor: signee.color,
+          //isInitial: (annotationType === AnnotationTypeEnum.SIGNATURE)false,
         },
         backgroundColor: signee.color,
       });
@@ -168,10 +183,7 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
         setReadyToSign(value);
         if (value) {
           instance.setViewState((viewState) =>
-            viewState.set(
-              "interactionMode",
-              PSPDFKit.InteractionMode.PAN
-            )
+            viewState.set("interactionMode", PSPDFKit.InteractionMode.PAN)
           );
         } else {
           instance.setViewState((viewState) =>
@@ -183,10 +195,7 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
         }
       } else {
         instance.setViewState((viewState) =>
-          viewState.set(
-            "interactionMode",
-            PSPDFKit.InteractionMode.PAN
-          )
+          viewState.set("interactionMode", PSPDFKit.InteractionMode.PAN)
         );
       }
     }
@@ -302,6 +311,13 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
         baseUrl: `${window.location.protocol}//${window.location.host}/`,
         toolbarItems: TOOLBAR_ITEMS as ToolbarItem[],
         disableTextSelection: true,
+        customRenderers: {
+          Annotation: ({ annotation }) =>
+            getAnnotationRenderers({
+              annotation,
+            }),
+        },
+        styleSheets: [`/viewer.css`],
         electronicSignatures: {
           creationModes: [
             PSPDFKit.ElectronicSignatureCreationMode.DRAW,
@@ -309,20 +325,102 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
             PSPDFKit.ElectronicSignatureCreationMode.TYPE,
           ],
         },
-      }).then((inst: any) => {
+      }).then(async function (inst: Instance) {
         setInstance(inst);
-        // Setting Page Index
+
+        // **** Setting Page Index ****
+
         inst.addEventListener(
           "viewState.currentPageIndex.change",
           (page: any) => {
             setOnPageIndex(page);
           }
         );
-        // Handle Drop event
+
+        // **** Handle Drop event ****
+
+        //@ts-ignore
         const cont = inst.contentDocument.host;
         cont.ondrop = async function (e: any) {
           await handleDrop(e, inst);
         };
+
+        // **** Handling Add Signature / Initial UI ****
+
+        // Use this for storing signatures within a session
+        let sessionSignatures : any = [];
+        let sessionInitials : any = [];
+        let lastFormFieldClickedIsInitial = false;
+        // Track which signature form field was clicked on
+        // and wether it was an initial field or not.
+        inst.addEventListener("annotations.press", (event) => {
+          let lastFormFieldClicked = event.annotation;
+
+          let annotationsToLoad;
+          if (
+            lastFormFieldClicked.customData &&
+            lastFormFieldClicked.customData.isInitial === true
+          ) {
+            //if(lastFormFieldClicked.formFieldName && lastFormFieldClicked.formFieldName.includes("INITIALS")) {
+            lastFormFieldClickedIsInitial = true;
+            annotationsToLoad = sessionInitials;
+          } else {
+            lastFormFieldClickedIsInitial = false;
+            annotationsToLoad = sessionSignatures;
+          }
+
+          inst.setStoredSignatures(
+            PSPDFKit.Immutable.List(annotationsToLoad)
+          );
+        });
+
+        // **** Handling Signature / Initial fields appearance after signature ****
+
+        //   inst.addEventListener(
+        //     "annotations.load",
+        //     async (loadedAnnotations: any) => {
+        //       for await (const annotation of loadedAnnotations) {
+        //         await handleAnnotatitonCreation({
+        //           inst,
+        //           annotation,
+        //           mySignatureIdsRef,
+        //           setSignatureAnnotationIds,
+        //           myEmail: currUser?.email,
+        //         });
+        //       }
+        //     }
+        //   );
+
+        //   inst.addEventListener(
+        //     "annotations.create",
+        //     async (createdAnnotations: any) => {
+        //       const annotation = createdAnnotations.get(0);
+        //       await handleAnnotatitonCreation({
+        //         inst,
+        //         annotation,
+        //         mySignatureIdsRef,
+        //         setSignatureAnnotationIds,
+        //         myEmail: currUser?.email,
+        //       });
+        //     }
+        //   );
+
+        //   inst.addEventListener(
+        //     "annotations.delete",
+        //     async (deletedAnnotations: any) => {
+        //       const annotation = deletedAnnotations.get(0);
+        //       await handleAnnotatitonDelete({
+        //         inst,
+        //         annotation,
+        //         myEmail: currUser?.email,
+        //       });
+        //       const updatedAnnotationIds = mySignatureIdsRef.current.filter(
+        //         (id) => id !== annotation.id
+        //       );
+        //       setSignatureAnnotationIds(updatedAnnotationIds);
+        //       mySignatureIdsRef.current = updatedAnnotationIds;
+        //     }
+        //   );
       });
     }
   }, []);
@@ -425,6 +523,13 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
               />
+              <DraggableAnnotation
+                className="mt-5"
+                type={AnnotationTypeEnum.INITIAL}
+                label="Initial"
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+              />
               {/* Uncomment this to add draggable date field */}
               {/* <DraggableAnnotation
                 className="mt-5"
@@ -474,6 +579,9 @@ const DraggableAnnotation = ({
     case AnnotationTypeEnum.DATE:
       icon = iconDate;
       break;
+    case AnnotationTypeEnum.INITIAL:
+      icon = iconSignature;
+      break;
     default:
       icon = iconName;
       break;
@@ -513,7 +621,7 @@ const DraggableAnnotation = ({
   );
 };
 
-export const TOOLBAR_ITEMS = [
+const TOOLBAR_ITEMS = [
   { type: "sidebar-thumbnails" },
   { type: "sidebar-document-outline" },
   { type: "pager" },
@@ -526,3 +634,207 @@ export const TOOLBAR_ITEMS = [
   { type: "print" },
   { type: "export-pdf" },
 ];
+
+function createCustomSignatureNode({ annotation, type }: any) {
+  const container = document.createElement("div");
+
+  if (type === AnnotationTypeEnum.SIGNATURE) {
+    container.innerHTML = `<div class="custom-annotation-wrapper custom-signature-wrapper" style="background-color: ${annotation.customData?.signerColor}">
+      <div class="custom-signature">
+        <img src="/icon-signature.png" width="25px" height="20px" />
+        <div class="custom-signature-label">
+           Sign here
+        </div>
+      </div>
+    </div>`;
+  } else if (type === AnnotationTypeEnum.INITIAL) {
+    container.innerHTML = `<div class="custom-annotation-wrapper custom-signature-wrapper" style="background-color: ${annotation.customData?.signerColor}">
+      <div class="custom-signature">
+        <img src="/icon-signature.png" width="25px" height="20px" />
+        <div class="custom-signature-label">
+           Initial here
+        </div>
+      </div>
+    </div>`;
+  } else if (
+    type === AnnotationTypeEnum.NAME ||
+    type === AnnotationTypeEnum.DATE
+  ) {
+    container.innerHTML = `<div class="custom-annotation-wrapper"  style="background-color: ${annotation.customData?.signerColor}">
+        <div class="custom-annotation-name">
+          ${annotation.text?.value}
+        </div>
+    </div>`;
+  }
+
+  return container;
+}
+
+const getAnnotationRenderers = ({ annotation }: any) => {
+  if (annotation.isSignature) {
+    return;
+  }
+
+  if (annotation.name) {
+    if (renderConfigurations[annotation.id]) {
+      return renderConfigurations[annotation.id];
+    }
+
+    renderConfigurations[annotation.id] = {
+      node: createCustomSignatureNode({
+        annotation,
+        type: annotation.customData?.type,
+      }),
+      append: true,
+    };
+
+    return renderConfigurations[annotation.id] || null;
+  }
+};
+
+const handleAnnotatitonCreation = async ({
+  instance,
+  annotation,
+  mySignatureIdsRef,
+  setSignatureAnnotationIds,
+  myEmail,
+}: any) => {
+  if (annotation.isSignature) {
+    for (let i = 0; i < instance.totalPageCount; i++) {
+      const annotations = await instance.getAnnotations(i);
+      for await (const maybeCorrectAnnotation of annotations) {
+        if (
+          annotation.boundingBox.isRectOverlapping(
+            maybeCorrectAnnotation.boundingBox
+          )
+        ) {
+          const newAnnotation = getAnnotationRenderers({
+            annotation: maybeCorrectAnnotation,
+          });
+          if (newAnnotation?.node) {
+            newAnnotation.node.className = "signed";
+          }
+        }
+
+        if (
+          maybeCorrectAnnotation.customData?.type === AnnotationTypeEnum.DATE &&
+          maybeCorrectAnnotation?.customData?.signerEmail === myEmail
+        ) {
+          // save the signDate in the customData of the annotation
+          // @ts-ignore
+          const instance = document.pspdfkitInstance;
+          const date = formatDateString(Date.now(), "2-digit");
+          const annotation = maybeCorrectAnnotation.set("text", {
+            format: "plain",
+            value: date,
+          });
+          const dateAnnotationRender = getAnnotationRenderers({
+            annotation: maybeCorrectAnnotation,
+          });
+          if (dateAnnotationRender?.node) {
+            const dateAnnotation = dateAnnotationRender.node.querySelector(
+              ".custom-annotation-name"
+            );
+            dateAnnotation.innerHTML = date;
+            dateAnnotationRender.node.className =
+              dateAnnotationRender.node.className + " signed";
+          }
+          await instance.update(annotation);
+          await instance.save();
+        } else if (
+          maybeCorrectAnnotation.customData?.type === AnnotationTypeEnum.NAME &&
+          maybeCorrectAnnotation?.customData?.signerEmail === myEmail
+        ) {
+          //@ts-ignore
+          const instance = document.pspdfkitInstance;
+          const nameAnnotationRender = getAnnotationRenderers({
+            annotation: maybeCorrectAnnotation,
+          });
+
+          nameAnnotationRender.node.className =
+            nameAnnotationRender.node.className + " signed";
+
+          await instance.update(maybeCorrectAnnotation);
+          await instance.save();
+        }
+      }
+    }
+    const signatures = [...mySignatureIdsRef.current, annotation.id];
+    setSignatureAnnotationIds(signatures);
+    mySignatureIdsRef.current = signatures;
+  }
+};
+
+const handleAnnotatitonDelete = async ({
+  instance,
+  annotation,
+  myEmail,
+}: any) => {
+  if (annotation.isSignature) {
+    for (let i = 0; i < instance.totalPageCount; i++) {
+      const annotations = await instance.getAnnotations(i);
+      for await (const maybeCorrectAnnotation of annotations) {
+        if (
+          annotation.boundingBox.isRectOverlapping(
+            maybeCorrectAnnotation.boundingBox
+          )
+        ) {
+          const newAnnotation = getAnnotationRenderers({
+            annotation: maybeCorrectAnnotation,
+          });
+          if (newAnnotation?.node) {
+            newAnnotation.node.className = "";
+          }
+        }
+
+        if (
+          maybeCorrectAnnotation.customData?.type === AnnotationTypeEnum.DATE &&
+          maybeCorrectAnnotation?.customData?.signerEmail === myEmail
+        ) {
+          // save the signDate in the customData of the annotation
+          //@ts-ignore
+          const instance = document.pspdfkitInstance;
+          const annotation = maybeCorrectAnnotation.set("text", {
+            format: "plain",
+            value: "Date Signed",
+          });
+          const dateAnnotationRender = getAnnotationRenderers({
+            annotation: maybeCorrectAnnotation,
+          });
+          if (dateAnnotationRender?.node) {
+            dateAnnotationRender.node.querySelector(
+              ".custom-annotation-name"
+            ).innerHTML = "Date Signed";
+          }
+          dateAnnotationRender.node.className = "";
+          await instance.update(annotation);
+          await instance.save();
+        } else if (
+          maybeCorrectAnnotation.customData?.type === AnnotationTypeEnum.NAME &&
+          maybeCorrectAnnotation?.customData?.signerEmail === myEmail
+        ) {
+          //@ts-ignore
+          const instance = document.pspdfkitInstance;
+          const nameAnnotationRender = getAnnotationRenderers({
+            annotation: maybeCorrectAnnotation,
+          });
+
+          nameAnnotationRender.node.className = "";
+
+          await instance.update(maybeCorrectAnnotation);
+          await instance.save();
+        }
+      }
+    }
+  }
+};
+
+function formatDateString(date: any, month: string = "long") {
+  const d = new Date(date);
+  return d.toLocaleDateString("en-gb", {
+    year: "numeric",
+    // @ts-ignore
+    month,
+    day: "2-digit",
+  });
+}

@@ -26,7 +26,7 @@ const App: React.FC = () => {
   useEffect(() => {
     setTimeout(() => {
       console.log("Setting current user to Signer");
-      setCurrUser(allUsers[1]);
+      //setCurrUser(allUsers[1]);
     }, 5 * 1000);
   }, []); // Add an empty dependency array to ensure the effect runs only once
 

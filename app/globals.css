@@ -165,9 +165,6 @@ body {
 .table {
   font-size: 15px;
 }
-.table td {
-  /* border-bottom: 1px solid var(--anti-flash-white); */
-}
 
 .table thead tr {
   /* @apply text-gray-90; */
