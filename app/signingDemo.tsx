@@ -302,7 +302,7 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
     }
   };
 
-  // Creating signature UI 
+  // Tracking whether add Signature/Initial UI 
   let isCreateInitial: boolean = false;
 
   // Load PSPDFKit
