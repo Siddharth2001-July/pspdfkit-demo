@@ -176,6 +176,8 @@ export const SignDemo: React.FC<{ allUsers: User[]; user: User }> = ({
           responsive: false,
           maxWidth: 192,
           maxHeight: 80,
+          minWidth: 100,
+          minHeight: 40,
         };
       }
     });
